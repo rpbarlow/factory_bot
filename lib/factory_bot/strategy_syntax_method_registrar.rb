@@ -29,7 +29,9 @@ module FactoryBot
           raise ArgumentError, "count missing for #{strategy_name}_list"
         end
 
-        Array.new(amount) { send(strategy_name, name, *traits_and_overrides, &block) }
+        ListRunner.new(amount, block).run do |block_for_instance|
+          send(strategy_name, name, *traits_and_overrides, &block_for_instance)
+        end
       end
     end
 
@@ -49,6 +51,29 @@ module FactoryBot
 
         define_method(name, &block)
       end
+    end
+  end
+end
+
+class ListRunner
+  def initialize(amount, block)
+    @amount = amount
+    @block = block
+  end
+
+  def run
+    Array.new(@amount) do |index|
+      yield block_for_instance(index)
+    end
+  end
+
+  private
+
+  def block_for_instance(index)
+    if @block&.arity == 2
+      -> (record) { @block.call(record, index) }
+    else
+      @block
     end
   end
 end
